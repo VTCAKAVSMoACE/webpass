@@ -1,0 +1,506 @@
+<html>
+
+  <head>
+    <script src="/socket.io/socket.io.js" type="text/javascript"></script>
+    <script type="text/javascript">
+      var targetAddress = '';
+
+      var socket = io.connect(
+        targetAddress, {
+          secure: true
+        });
+
+      var name,
+        currenteditpane = null,
+        storedtree = null,
+        recipients;
+
+      function sendPass() {
+
+        name = document.getElementById('name')
+          .value;
+
+        socket.emit('verify', {
+          name: document.getElementById(
+            'name').value,
+          pass: document.getElementById(
+            'pass').value
+        });
+
+      }
+
+      socket.on('updateOut', function(msg) {
+        setTimeout( function() { alert(msg) }, 15000);
+      });
+
+      socket.on('editSuccess', function(msg) {
+        resetPage();
+      });
+
+      function getPass(path) {
+
+        socket.emit('retrievePass', './' +
+          path);
+
+      }
+
+      function firstDif(arr1, arr2) {
+
+        var max = arr1.length;
+
+        if (arr1.length < arr2.length) {
+          max = arr2.length;
+        }
+
+        for (ind = 0; ind < max; ind++) {
+
+          if (arr1[ind] != arr2[ind]) {
+            return ind;
+          }
+
+        }
+
+        return max;
+
+      }
+
+      function concatDoc(str) {
+
+        document.getElementById('form').innerHTML +=
+          str;
+
+      }
+
+      function buildTree(strarr) {
+        var tree = {
+          mems: [],
+          name: '.',
+          path: './'
+        };
+
+        for (ind = 0; ind < strarr.length; ind++) {
+          assignLoc(tree, strarr[ind].split(
+            '/'));
+        }
+
+        storedtree = tree;
+
+        return tree;
+
+      }
+
+      function assignLoc(curlimb, patharr) {
+        if (patharr.length == 1) {
+          if (patharr[0] != '')
+            curlimb.mems.push(patharr[0]);
+          return;
+        }
+
+        for (var ind = 0; ind < curlimb.mems.length; ind++) {
+
+          if (typeof curlimb.mems[ind] !=
+            'string' && !(curlimb.mems[ind] instanceof String) &&
+            curlimb.mems[ind].name == patharr[
+              0]) {
+            patharr.splice(0, 1);
+            assignLoc(curlimb.mems[ind],
+              patharr);
+            return;
+          }
+
+        }
+
+        curlimb.mems.push({
+          mems: [],
+          name: patharr[0],
+          path: curlimb.path + patharr[0] +
+            '/'
+        });
+        patharr.splice(0, 1);
+        assignLoc(curlimb.mems[curlimb.mems.length -
+          1], patharr);
+      }
+
+      function renderTree(curlimb) {
+
+        var list = document.createElement(
+          'li');
+
+        var sublist = document.createElement(
+          'ul');
+
+        list.appendChild(document.createTextNode(
+          curlimb.name + '    '));
+
+        list.class = 'directory';
+
+        list.id = 'dir: ' + curlimb.path;
+
+        var addfold = document.createElement(
+          'button');
+        addfold.type = 'button';
+        addfold.appendChild(document.createTextNode(
+          'Add Subfolder'));
+        addfold.addEventListener("click",
+          function(event) {
+            addFoldMenu(document.getElementById(
+              'list'), list.id.substring(5));
+          });
+
+        var addkey = document.createElement(
+          'button');
+        addkey.type = 'button';
+        addkey.appendChild(document.createTextNode(
+          'Add Password'));
+        addkey.addEventListener("click",
+          function(event) {
+            addKeyMenu(document.getElementById(
+              'list'), list.id.substring(5));
+          });
+
+        list.appendChild(addfold);
+        list.appendChild(addkey);
+
+        for (var ind = 0; ind < curlimb.mems.length; ind++) {
+
+          var item = document.createElement(
+            'li');
+
+          if (typeof curlimb.mems[ind] ==
+            'string' || curlimb.mems[ind] instanceof String
+          ) {
+
+            item.appendChild(document.createTextNode(
+              curlimb.mems[ind].substring(0, curlimb.mems[ind].length - 4) + '    '));
+
+            item.id = 'key: ' + curlimb.path +
+              curlimb.mems[ind];
+
+
+            var edit = document.createElement(
+              'button');
+            edit.type = 'button';
+            edit.appendChild(document.createTextNode(
+              'Edit'));
+            edit.addEventListener("click",
+              function(event) {
+                console.log(item.id.substring(5).split('/').pop());
+                editMenu(document.getElementById(
+                    'list'), item.id.substring(5).split('/').pop(), list.id
+                  .substring(5));
+              });
+
+            item.appendChild(edit);
+
+            var req = document.createElement(
+              'button');
+            req.type = 'button';
+            req.appendChild(document.createTextNode(
+              'View'));
+            req.addEventListener("click",
+              function(event) {
+                getPass(item.id.substring(5));
+              });
+
+            item.appendChild(req);
+
+            sublist.appendChild(item);
+
+          } else {
+
+            item.appendChild(renderTree(
+              curlimb.mems[ind]));
+
+            sublist.appendChild(item);
+
+          }
+
+          sublist.appendChild(item);
+        }
+
+        list.appendChild(sublist);
+
+        return list;
+
+      }
+
+      function editMenu(item, passname, passpath) {
+        if (currenteditpane != null) {
+          currenteditpane(null);
+        }
+        console.log(passname);
+        keyAlter(item, passname, passpath);
+      }
+
+      function addFoldMenu(item, superdirectory) {
+        if (currenteditpane != null) {
+          currenteditpane(null);
+        }
+        foldAlter(item, superdirectory);
+      }
+
+      function addKeyMenu(item, passpath) {
+        if (currenteditpane != null) {
+          currenteditpane(null);
+        }
+        keyAlter(item, '', passpath);
+      }
+
+      function keyAlter(form, passname, passpath) {
+        console.log(passname);
+        var fieldset = document.createElement(
+          'fieldset');
+
+        fieldset.appendChild(document.createElement(
+          'br'));
+        fieldset.appendChild(document.createTextNode(
+          'Password Name:'));
+        var newpassname = document.createElement(
+          'input');
+        newpassname.id = 'passname';
+        newpassname.type = 'text';
+        newpassname.value = passname;
+        newpassname.readonly = passname != '';
+        fieldset.appendChild(newpassname);
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        fieldset.appendChild(document.createElement(
+          'br'));
+        fieldset.appendChild(document.createTextNode(
+          'New Password:'));
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        var verpassword = document.createElement(
+          'input');
+        verpassword.id = 'password';
+        verpassword.type = 'password';
+        verpassword.value = '';
+        fieldset.appendChild(verpassword);
+
+        fieldset.appendChild(document.createElement(
+          'br'));
+        fieldset.appendChild(document.createTextNode(
+          'Verify Password:'));
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        var newpassword = document.createElement(
+          'input');
+        newpassword.id = 'password';
+        newpassword.type = 'password';
+        newpassword.value = '';
+        fieldset.appendChild(newpassword);
+
+        fieldset.appendChild(document.createElement(
+          'br'));
+        fieldset.appendChild(document.createTextNode(
+          'Recipients:'));
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        var recip1 = document.createElement(
+          'input');
+        recip1.type = 'text';
+        recip1.value = name;
+        recip1.readonly = true;
+        fieldset.appendChild(recip1);
+
+        recipients = [recip1];
+
+        var newpassbutton;
+
+        var addrecip = document.createElement(
+          'button');
+        addrecip.type = 'button';
+        addrecip.appendChild(document.createTextNode(
+          'Add Recipient'));
+        addrecip.addEventListener("click",
+          function(event) {
+
+            fieldset.insertBefore(document.createElement(
+              'br'), addrecip);
+
+            var newrecip = document.createElement(
+              'input');
+            newrecip.type = 'text';
+            newrecip.value = "";
+            fieldset.insertBefore(newrecip,
+              addrecip);
+
+            recipients.push(newrecip);
+
+          });
+        fieldset.appendChild(addrecip);
+
+        var rmrecip = document.createElement(
+          'button');
+        rmrecip.type = 'button';
+        rmrecip.appendChild(document.createTextNode(
+          'Remove Recipient'));
+        rmrecip.addEventListener("click",
+          function(event) {
+            if (recipients.length == 1) {
+              return;
+            }
+
+            fieldset.removeChild(recipients
+              .pop());
+
+          });
+
+        fieldset.appendChild(rmrecip);
+
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        newpassbutton = document.createElement(
+          'button');
+        newpassbutton.id = 'gennewpass';
+        newpassbutton.type = 'button';
+        newpassbutton.appendChild(document.createTextNode(
+          'Confirm'));
+        newpassbutton.addEventListener(
+          "click",
+          function(event) {
+
+            if (newpassword.value !=
+              verpassword.value) {
+              alert('Passwords do not match.');
+              return;
+            }
+
+            var newpassnameval = passpath + newpassname.value + '.gpg',
+              newpasswordval = newpassword.value,
+              recipientsvals = [];
+
+            for (ind = 0; ind < recipients.length; ind++) {
+              recipientsvals.push(
+                recipients[ind].value);
+            }
+            socket.emit('makePass', {
+              newpassname: newpassnameval,
+              newpassword: newpasswordval,
+              recipients: recipientsvals
+            });
+
+            assignLoc(storedtree, newpassnameval.substring(2).split('/'));
+
+          });
+
+        fieldset.appendChild(newpassbutton);
+
+        var cancel = document.createElement(
+          'button');
+        cancel.type = 'button';
+        cancel.appendChild(document.createTextNode(
+          'Cancel'));
+        currenteditpane = function(event) {
+          currenteditpane = null;
+          form.removeChild(fieldset);
+        };
+        cancel.addEventListener("click",
+          currenteditpane);
+        fieldset.appendChild(cancel);
+        form.appendChild(fieldset);
+      }
+
+      function foldAlter(form, superfolder) {
+
+        var fieldset = document.createElement('fieldset');
+
+        fieldset.appendChild(document.createElement(
+          'br'));
+        fieldset.appendChild(document.createTextNode(
+          'Folder Name:'));
+        var newfoldname = document.createElement(
+          'input');
+        newfoldname.id = 'foldname';
+        newfoldname.type = 'text';
+        newfoldname.value = '';
+        fieldset.appendChild(newfoldname);
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        newfoldbutton = document.createElement(
+          'button');
+        newfoldbutton.id = 'gennewpass';
+        newfoldbutton.type = 'button';
+        newfoldbutton.appendChild(document.createTextNode(
+          'Confirm'));
+        newfoldbutton.addEventListener(
+          "click",
+          function(event) {
+
+            var newfoldnameval = superfolder + newfoldname.value + '/';
+
+            socket.emit('makeFold', newfoldnameval);
+
+            assignLoc(storedtree, newfoldnameval.substring(2).split('/'));
+
+          });
+
+        fieldset.appendChild(newfoldbutton);
+
+        var cancel = document.createElement(
+          'button');
+        cancel.type = 'button';
+        cancel.appendChild(document.createTextNode(
+          'Cancel'));
+        currenteditpane = function(event) {
+          currenteditpane = null;
+          form.removeChild(fieldset);
+        }
+        cancel.addEventListener("click",
+          currenteditpane);
+        fieldset.appendChild(cancel);
+        form.appendChild(fieldset);
+      }
+
+      function addAfter(item, newItem) {
+        item.parentNode.insertBefore(newItem,
+          item.nextSibling);
+      }
+
+      function resetPage() {
+        var list = document.getElementById('list');
+        while (list.firstChild) {
+          list.removeChild(list.firstChild);
+        }
+        list.appendChild(renderTree(storedtree));
+        if (currenteditpane != null) {
+          currenteditpane(null);
+        }
+      }
+
+      socket.on('recieveTree', function(arr) {
+
+        form = document.getElementById(
+          'form');
+
+        form.innerHTML = "";
+
+        var list = document.createElement(
+          'div');
+        list.id = 'list';
+        form.appendChild(list);
+        if (storedtree == null) {
+          storedtree = buildTree(arr);
+        }
+        resetPage();
+
+      });
+
+    </script>
+    <script type="text/javascript" id="newscript"></script>
+  </head>
+  <form action="" id="form">
+    User:<br />
+    <input id="name" type="text" value="" /><br /> Passphrase:
+    <br />
+    <input id="pass" type="password" value="" /><br />
+    <button id="init" type="button" onclick="sendPass()">Validate</button>
+  </form>
+
+</html>

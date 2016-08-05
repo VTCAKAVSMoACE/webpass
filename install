@@ -1,0 +1,33 @@
+#!/bin/bash
+
+echo 'webpass Installer'
+echo
+
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root." 1>&2
+   exit 1
+fi
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+apt-get install -y gpg git nodejs npm
+
+npm install socket.io express
+
+wget -o openpgp.js https://raw.githubusercontent.com/openpgpjs/openpgpjs/master/dist/openpgp.js
+
+echo -n 'HTTPS SSL/TLS Certificate path: '
+read cert
+cp "$cert" "$DIR/cert.pem"
+echo -n 'HTTPS SSL/TLS Private Key path: '
+read privkey
+cp "$privkey" "$DIR/key.pem"
+
+echo "Remember to change in webpass.js:"
+echo " - keyPassphrase to your passphrase (if applicable)"
+echo " - passdir to your password storage directory (if applicable)"
+echo " - port to your target listening port"
+echo " - usercheck, filecheck, and foldcheck to appropriate regexes"
+echo
+echo "Remember to change in webpass.html:"
+echo " - targetAddress to your target address (IP:port)"
