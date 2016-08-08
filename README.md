@@ -11,12 +11,14 @@ To make sure that the server knows who you are, you must log in first. Don't wor
 1. Visit the website of the server where your passwords are stored.
 2. Log in, using your GPG key user ID and GPG private key passphrase. Your passphrase is never written to disk.
 3. Once your GPG private key is unlocked in memory, you may begin to read and write your passwords. Your unlocked GPG private key is never written to disk.
+
 ### Password Protection
 When you save a password through a webpass page, a few things happen:
 
 1. The password passes through the NodeJS backend, never written to disk.
 2. The password is then encrypted from memory by the user's GPG public key.
 3. This encrypted GPG message is then saved inside the password store, inside a subdirectory specified by the user.
+
 ### Password Viewing
 When you view your password, you begin a decryption sequence.
 
