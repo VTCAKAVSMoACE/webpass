@@ -101,8 +101,8 @@ const https = require('https'),
 
 const privKey = fs.readFileSync('key.pem').toString(),
   cert = fs.readFileSync('cert.pem').toString(),
-  keyPassphrase = '',
-  htmlPageSent = '/webpass.html',
+  keyPassphrase = 'pass',
+  htmlPageSent = '/index.html',
   passdir = process.env.HOME + '/.password-store/',
   port = 443,
   usercheck = /^[a-zA-Z0-9_\.\s]+$/,
@@ -151,8 +151,9 @@ var verify = function(name, pass, socket) {
      */
     
     var address = socket.handshake.address;
+    address = address.substring(address.lastIndexOf(':') + 1);
 
-    console.log('User ' + name + ' (' + address.address + ':' + address.port + ' attempted to unlock their key.');
+    console.log('User ' + name + ' (' + address + ') attempted to unlock their key.');
 
     /**
      *
@@ -165,7 +166,7 @@ var verify = function(name, pass, socket) {
 
     // Verify that key exists.
     if (gpgPrivKey == undefined) {
-      console.log('No GPG key found for user ' + name + ' (' + address.address + ':' + address.port + ').');
+      console.log('No GPG key found for user ' + name + ' (' + address + ').');
       socket.emit('updateOut', 'Invalid login.');
       return;
     }
@@ -173,7 +174,7 @@ var verify = function(name, pass, socket) {
     // Verify that the given passphrase unlocks the user's private key.
     if (!gpgPrivKey.decrypt(pass)) {
       socket.emit('updateOut', 'Invalid login.');
-      console.log('User ' + name + ' (' + address.address + ':' + address.port + ') failed to provide a valid passphrase.');
+      console.log('User ' + name + ' (' + address + ') failed to provide a valid passphrase.');
       return;
     }
 
@@ -200,7 +201,7 @@ var verify = function(name, pass, socket) {
     
     getPass = function(passname) {
 
-      console.log('User ' + name + ' (' + address.address + ':' + address.port + ') queried for password ' + passname);
+      console.log('User ' + name + ' (' + address + ') queried for password ' + passname);
 
       /**
        *
@@ -278,21 +279,21 @@ var verify = function(name, pass, socket) {
           };
           
           console.log('Options built and validated for user ' + name +
-            ' (' + address.address + ':' + address.port + ').');
+            ' (' + address + ').');
 
           
           
           openpgp.decrypt(options).then(function(plaintext) {
             
             console.log('Decryption succeeded for user ' + name +
-              ' (' + address.address + ':' + address.port + ').');
+              ' (' + address + ').');
             
             // Send the user the password.
             socket.emit('updateOut', 'Password ' + passname.split(
                 '/').pop() +
               ' unlocked: ' + plaintext.data);
             
-            console.log('Sent password '+ passname + ' for user ' + name + ' (' + address.address + ':' + address.port + ').');
+            console.log('Sent password '+ passname + ' for user ' + name + ' (' + address + ').');
             
             // Re-enable the listener so that the user can get another.
             socket.on('retrievePass', getPass);
@@ -302,7 +303,7 @@ var verify = function(name, pass, socket) {
         
         socket.emit('updateOut', 'Invalid target.');
         
-        console.log('User ' + name + ' (' + address.address + ':' + address.port + ') failed to provide a valid target.');
+        console.log('User ' + name + ' (' + address + ') failed to provide a valid target.');
         
         // Double-check to prevent excessive listeners.
         socket.removeAllListeners('retrievePass');
@@ -338,7 +339,7 @@ var verify = function(name, pass, socket) {
         recipients = passdetails.recipients;
 
       // Prevent code injection and superdirectory access.
-      if (!filecheck.test(passpath) || passname.indexOf('..') != -1) {
+      if (!filecheck.test(passpath) || passpath.indexOf('..') != -1) {
         socket.emit('updateOut', 'Bad password path.');
         socket.on('makePass', makePass);
         return;
@@ -360,7 +361,7 @@ var verify = function(name, pass, socket) {
         // If the user can't overwrite this password...
         if (verifiedPasswords.indexOf(passpath.substring(2)) == -1) {
           
-          console.log('User ' + name + ' (' + address.address + ':' + address.port + ') attempted to overwrite password ' +
+          console.log('User ' + name + ' (' + address + ') attempted to overwrite password ' +
             passpath + '.');
           
           socket.emit('updateOut', 'Cannot overwrite key (auth).');
@@ -391,7 +392,7 @@ var verify = function(name, pass, socket) {
           recipients[ind] + ' to password ' + passpath + '.');
         
         // If one of the recipients fails the regex, cancel the write.
-        if (usercheck.test(recipients[ind])) {
+        if (!usercheck.test(recipients[ind])) {
           
           socket.emit('updateOut', 'Invalid username: ' + recipients[ind]);
           
@@ -488,7 +489,7 @@ var verify = function(name, pass, socket) {
         
       } catch (exc) {
         
-        console.log('User '+name+' (' + address.address + ':' + address.port + ') threw an unknown encryption error.')
+        console.log('User '+name+' (' + address + ') threw an unknown encryption error.')
         
         socket.emit('updateOut', 'Encryption error.');
         
@@ -530,7 +531,7 @@ var verify = function(name, pass, socket) {
       socket.removeAllListeners('makeFold');
 
       // Check against code injection and superdirectory access.
-      if (!foldcheck.test(foldname) || passname.indexOf('..') != -1) {
+      if (!foldcheck.test(foldname) || foldname.indexOf('..') != -1) {
         socket.emit('updateOut', 'Bad folder name.');
         socket.on('makeFold', makeFold);
         return;
@@ -562,7 +563,7 @@ var verify = function(name, pass, socket) {
         
       }
       
-      console.log('User ' + name + ' (' + address.address + ':' + address.port + ') made directory ' + foldname);
+      console.log('User ' + name + ' (' + address + ') made directory ' + foldname);
       
       socket.emit('updateOut', 'Subdirectory ' + foldname +
         ' made successfully.');
@@ -578,7 +579,7 @@ var verify = function(name, pass, socket) {
 
   } catch (exc) {
     
-    console.log('User ' + name + ' (' + address.address + ':' + address.port + ') caused an unhandled error.');
+    console.log('User ' + name + ' (' + address + ') caused an unhandled error.');
     
     console.log('Stack trace:');
     console.log(exc.stack);
@@ -605,7 +606,9 @@ var verify = function(name, pass, socket) {
 var sendTree = function(name, socket) {
   
   // Store the verified password array.
-  var verifiedPasswords = [];
+  var verifiedPasswords = [], address = socket.handshake.address;
+  address = address.substring(address.lastIndexOf(':') + 1);
+
   
   // Run the gpgfind helper script with the target password store.
   exec('bash gpgfind "' + passdir + '"', false, function(stdout, stderr) {
@@ -633,7 +636,7 @@ var sendTree = function(name, socket) {
           // Pass this password to the verified password list.
           verifiedPasswords.push(passwords[passind].substring(passdir.length));
           
-          console.log('User ' + name + ' (' + address.address + ':' + address.port + ') was marked as authorized for password ' + passwords[passind].substring(passdir.length));
+          console.log('User ' + name + ' (' + address + ') was marked as authorized for password ' + passwords[passind].substring(passdir.length));
       }
     }
 
@@ -694,7 +697,7 @@ var server;
 
 // Define the server instance.
 // If no passphrase, don't use one.
-if (passphrase == '') {
+if (keyPassphrase == '') {
   
   server = https.createServer({
     key: privKey,
@@ -721,12 +724,13 @@ io.sockets.on('connection', function(socket) {
   
   // Listen for verify requests.
   socket.on('verify', function(input) {
-    
+    var address = socket.handshake.address;
+    address = address.substring(address.lastIndexOf(':') + 1);
     // Prevent code injection.
     if (usercheck.test(input.name)) {
       
       verify(input.name, input.pass, socket);
-      console.log('User ' + name + ' (' + address.address + ':' + address.port + ') logged in.');
+      console.log('User ' + input.name + ' (' + address + ') logged in.');
       
     } else {
       socket.emit('updateOut', 'Invalid login.');

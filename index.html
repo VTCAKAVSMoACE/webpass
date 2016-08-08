@@ -35,15 +35,33 @@
 
       }
 
-      // Whenever the server sends us a message, open up an alert
+
+
+      function escapeHtml(unsafe) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(unsafe));
+        return div.innerHTML;
+      }
+
+      // Whenever the server sends us a message, open up a window
       // but for only 15 seconds.
       socket.on('updateOut', function(msg) {
 
+        var win = window.open('', '', 'width=500,height=100');
+        if (win == null) {
+          document.getElementById('form').innerHTML = 
+                  'Please enable popups for this page.';
+          return
+        }
+        win.document.write(escapeHtml(msg));
+        win.focus();
         setTimeout(function() {
-          alert(msg)
+          win.close();
         }, 15000);
 
       });
+
+
 
       // Whenever something is completed successfully, make sure
       // to reset the page so everything loads properly.
@@ -179,8 +197,9 @@
           'Add Subfolder'));
         addfold.addEventListener("click",
           function(event) {
+            var target = event.target.parentNode;
             addFoldMenu(document.getElementById(
-              'list'), list.id.substring(5));
+              'list'), target.id.substring(5));
           });
 
         // Make a button for creating new passwords.
@@ -191,8 +210,9 @@
           'Add Password'));
         addkey.addEventListener("click",
           function(event) {
+            var target = event.target.parentNode;
             addKeyMenu(document.getElementById(
-              'list'), list.id.substring(5));
+              'list'), target.id.substring(5));
           });
 
         list.appendChild(addfold);
@@ -217,6 +237,8 @@
             item.id = 'key: ' + curlimb.path +
               curlimb.mems[ind];
 
+            console.log(item.id);
+
             // Make an edit button.
             var edit = document.createElement(
               'button');
@@ -225,7 +247,8 @@
               'Edit'));
             edit.addEventListener("click",
               function(event) {
-                editMenu(document.getElementById('list'), item.id.substring(5).split('/').pop(), list.id.substring(5));
+                var target = event.target.parentNode;
+                editMenu(document.getElementById('list'), target.id.substring(5).split('/').pop(), target.id.substring(5));
               });
 
             item.appendChild(edit);
@@ -238,7 +261,9 @@
               'View'));
             req.addEventListener("click",
               function(event) {
-                getPass(item.id.substring(5));
+                var target = event.target.parentNode;
+                console.log(target.id);
+                getPass(target.id.substring(5));
               });
 
             item.appendChild(req);
