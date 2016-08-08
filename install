@@ -5,11 +5,13 @@ echo
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-brew install gpg git nodejs npm
+sudo apt-get install gpg git nodejs npm
 
 npm install socket.io express
 
 wget -O openpgp.js https://raw.githubusercontent.com/openpgpjs/openpgpjs/master/dist/openpgp.js
+
+mkdir -p ~/.password_store/
 
 echo -n 'HTTPS SSL/TLS Certificate path: '
 read cert
@@ -18,6 +20,7 @@ echo -n 'HTTPS SSL/TLS Private Key path: '
 read privkey
 cp "$privkey" "$DIR/key.pem"
 
+echo
 echo "Remember to change in webpass.js:"
 echo " - keyPassphrase to your passphrase (if applicable)"
 echo " - passdir to your password storage directory (if applicable)"

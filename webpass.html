@@ -3,23 +3,29 @@
   <head>
     <script src="/socket.io/socket.io.js" type="text/javascript"></script>
     <script type="text/javascript">
+      // Target address to connect the websocket to.
       var targetAddress = '';
 
+      // Connect the websocket.
       var socket = io.connect(
         targetAddress, {
           secure: true
         });
 
+      // Define all vars that will be manipulated later.
       var name,
         currenteditpane = null,
         storedtree = null,
         recipients;
 
+      // Standard sendPass function for login.
       function sendPass() {
 
+        // Set the name, this will be used later.
         name = document.getElementById('name')
           .value;
 
+        // Send the server the login details.
         socket.emit('verify', {
           name: document.getElementById(
             'name').value,
@@ -29,21 +35,33 @@
 
       }
 
+      // Whenever the server sends us a message, open up an alert
+      // but for only 15 seconds.
       socket.on('updateOut', function(msg) {
-        setTimeout( function() { alert(msg) }, 15000);
+
+        setTimeout(function() {
+          alert(msg)
+        }, 15000);
+
       });
 
+      // Whenever something is completed successfully, make sure
+      // to reset the page so everything loads properly.
       socket.on('editSuccess', function(msg) {
         resetPage();
       });
 
+      // Helper method for retrieving passwords.
       function getPass(path) {
 
+        // Send the server a password request.
         socket.emit('retrievePass', './' +
           path);
 
       }
 
+      // Simple handler method for finding the first difference
+      // in two strings. Used for buildTree.
       function firstDif(arr1, arr2) {
 
         var max = arr1.length;
@@ -64,63 +82,78 @@
 
       }
 
-      function concatDoc(str) {
-
-        document.getElementById('form').innerHTML +=
-          str;
-
-      }
-
+      // Build a recursively defined tree out of strings.
       function buildTree(strarr) {
+
+        // Set up the initial tree.
         var tree = {
           mems: [],
           name: '.',
           path: './'
         };
 
+        // Assign a location in the tree to all the paths.
         for (ind = 0; ind < strarr.length; ind++) {
           assignLoc(tree, strarr[ind].split(
             '/'));
         }
 
+        // Cache the tree for later.
         storedtree = tree;
 
         return tree;
 
       }
 
+      // Recursively assign locations in the tree for paths.
       function assignLoc(curlimb, patharr) {
+
+        // If there is only one path index, it's a final filename.
         if (patharr.length == 1) {
+
+          // If it's not an empty string, assign it to this tree.
           if (patharr[0] != '')
             curlimb.mems.push(patharr[0]);
           return;
         }
 
+        // Otherwise, traverse the "limbs".
         for (var ind = 0; ind < curlimb.mems.length; ind++) {
 
-          if (typeof curlimb.mems[ind] !=
-            'string' && !(curlimb.mems[ind] instanceof String) &&
-            curlimb.mems[ind].name == patharr[
-              0]) {
+          // If this already has a limb, assign it further down the limb.
+          if (typeof curlimb.mems[ind] != 'string' && !(curlimb.mems[ind] instanceof String) && curlimb.mems[ind].name == patharr[0]) {
+
+            // Remove the first index of the path array.
             patharr.splice(0, 1);
+
+            // Go further down this limb.
             assignLoc(curlimb.mems[ind],
               patharr);
+
             return;
+
           }
 
         }
 
+        // Make a new limb.
         curlimb.mems.push({
           mems: [],
           name: patharr[0],
           path: curlimb.path + patharr[0] +
             '/'
         });
+
+        // Remove the first index of the path array.
         patharr.splice(0, 1);
+
+        // Send the path array down the new limb.
         assignLoc(curlimb.mems[curlimb.mems.length -
           1], patharr);
+
       }
 
+      // Recursively render the tree on the page.
       function renderTree(curlimb) {
 
         var list = document.createElement(
@@ -129,13 +162,16 @@
         var sublist = document.createElement(
           'ul');
 
+        // Make sure its name is listed.
         list.appendChild(document.createTextNode(
           curlimb.name + '    '));
 
         list.class = 'directory';
 
+        // Set the ID for any requests.
         list.id = 'dir: ' + curlimb.path;
 
+        // Make a button for creating subdirectories.
         var addfold = document.createElement(
           'button');
         addfold.type = 'button';
@@ -147,6 +183,7 @@
               'list'), list.id.substring(5));
           });
 
+        // Make a button for creating new passwords.
         var addkey = document.createElement(
           'button');
         addkey.type = 'button';
@@ -161,22 +198,26 @@
         list.appendChild(addfold);
         list.appendChild(addkey);
 
+        // Traverse the limbs of this limb.
         for (var ind = 0; ind < curlimb.mems.length; ind++) {
 
           var item = document.createElement(
             'li');
 
+          // If it's just a string, define the tree here.
           if (typeof curlimb.mems[ind] ==
             'string' || curlimb.mems[ind] instanceof String
           ) {
 
+            // Write its name in the proper location.
             item.appendChild(document.createTextNode(
               curlimb.mems[ind].substring(0, curlimb.mems[ind].length - 4) + '    '));
 
+            // Set the ID for any requests.
             item.id = 'key: ' + curlimb.path +
               curlimb.mems[ind];
 
-
+            // Make an edit button.
             var edit = document.createElement(
               'button');
             edit.type = 'button';
@@ -184,14 +225,12 @@
               'Edit'));
             edit.addEventListener("click",
               function(event) {
-                console.log(item.id.substring(5).split('/').pop());
-                editMenu(document.getElementById(
-                    'list'), item.id.substring(5).split('/').pop(), list.id
-                  .substring(5));
+                editMenu(document.getElementById('list'), item.id.substring(5).split('/').pop(), list.id.substring(5));
               });
 
             item.appendChild(edit);
 
+            // Make a request button.
             var req = document.createElement(
               'button');
             req.type = 'button';
@@ -204,17 +243,15 @@
 
             item.appendChild(req);
 
-            sublist.appendChild(item);
-
           } else {
 
+            // Recursive call to a sub-limb.
             item.appendChild(renderTree(
               curlimb.mems[ind]));
 
-            sublist.appendChild(item);
-
           }
 
+          // Add this member to this limb.
           sublist.appendChild(item);
         }
 
@@ -224,37 +261,58 @@
 
       }
 
+      // Make an edit menu at the specified location for
+      // the specified item.
       function editMenu(item, passname, passpath) {
+
+        // If there's a pre-existing editor pane, remove it.
         if (currenteditpane != null) {
           currenteditpane(null);
         }
-        console.log(passname);
+
         keyAlter(item, passname, passpath);
+
       }
 
+      // Make a folder creation menu at the specified 
+      // location for the specified item.
       function addFoldMenu(item, superdirectory) {
+
+        // If there's a pre-existing editor pane, remove it.
         if (currenteditpane != null) {
           currenteditpane(null);
         }
+
         foldAlter(item, superdirectory);
+
       }
 
       function addKeyMenu(item, passpath) {
+
+        // If there's a pre-existing editor pane, remove it.
         if (currenteditpane != null) {
           currenteditpane(null);
         }
+
         keyAlter(item, '', passpath);
+
       }
 
+      // Set up the menu at the specified location for
+      // altering/creating the specified key.
       function keyAlter(form, passname, passpath) {
-        console.log(passname);
+
         var fieldset = document.createElement(
           'fieldset');
 
+        // Add a text field for "Password Name:"
         fieldset.appendChild(document.createElement(
           'br'));
         fieldset.appendChild(document.createTextNode(
           'Password Name:'));
+
+        // Add an input field for the password name, making
+        // it readonly if the password already exists.
         var newpassname = document.createElement(
           'input');
         newpassname.id = 'passname';
@@ -265,6 +323,7 @@
         fieldset.appendChild(document.createElement(
           'br'));
 
+        // Make a text field for "New Password:"
         fieldset.appendChild(document.createElement(
           'br'));
         fieldset.appendChild(document.createTextNode(
@@ -272,20 +331,7 @@
         fieldset.appendChild(document.createElement(
           'br'));
 
-        var verpassword = document.createElement(
-          'input');
-        verpassword.id = 'password';
-        verpassword.type = 'password';
-        verpassword.value = '';
-        fieldset.appendChild(verpassword);
-
-        fieldset.appendChild(document.createElement(
-          'br'));
-        fieldset.appendChild(document.createTextNode(
-          'Verify Password:'));
-        fieldset.appendChild(document.createElement(
-          'br'));
-
+        // Make an input field for the new password.
         var newpassword = document.createElement(
           'input');
         newpassword.id = 'password';
@@ -293,6 +339,23 @@
         newpassword.value = '';
         fieldset.appendChild(newpassword);
 
+        // Make a text field for "Verify Password:"
+        fieldset.appendChild(document.createElement(
+          'br'));
+        fieldset.appendChild(document.createTextNode(
+          'Verify Password:'));
+        fieldset.appendChild(document.createElement(
+          'br'));
+
+        // Make an input field for the verified password.
+        var verpassword = document.createElement(
+          'input');
+        verpassword.id = 'password';
+        verpassword.type = 'password';
+        verpassword.value = '';
+        fieldset.appendChild(verpassword);
+
+        // Make a text field for "Recipients:"
         fieldset.appendChild(document.createElement(
           'br'));
         fieldset.appendChild(document.createTextNode(
@@ -300,23 +363,26 @@
         fieldset.appendChild(document.createElement(
           'br'));
 
+        // Make an input field for a recipient.
         var recip1 = document.createElement(
           'input');
         recip1.type = 'text';
+        // Set it to this login.
         recip1.value = name;
         recip1.readonly = true;
         fieldset.appendChild(recip1);
 
+        // Redefine the recipients.
         recipients = [recip1];
 
-        var newpassbutton;
-
+        // Make a button for making new recipients.
         var addrecip = document.createElement(
           'button');
         addrecip.type = 'button';
         addrecip.appendChild(document.createTextNode(
           'Add Recipient'));
         addrecip.addEventListener("click",
+          // Make another input field for a recipient.
           function(event) {
 
             fieldset.insertBefore(document.createElement(
@@ -329,11 +395,13 @@
             fieldset.insertBefore(newrecip,
               addrecip);
 
+            // Add this recipient to the recipients list.
             recipients.push(newrecip);
 
           });
         fieldset.appendChild(addrecip);
 
+        // Make a button for removing recipients.
         var rmrecip = document.createElement(
           'button');
         rmrecip.type = 'button';
@@ -345,17 +413,18 @@
               return;
             }
 
+            // Remove it from the page and recipients list.
             fieldset.removeChild(recipients
               .pop());
 
           });
-
         fieldset.appendChild(rmrecip);
 
         fieldset.appendChild(document.createElement(
           'br'));
 
-        newpassbutton = document.createElement(
+        // Make a button for starting the password creation.
+        var newpassbutton = document.createElement(
           'button');
         newpassbutton.id = 'gennewpass';
         newpassbutton.type = 'button';
@@ -365,32 +434,38 @@
           "click",
           function(event) {
 
+            // Prevent mis-matching passwords.
             if (newpassword.value !=
               verpassword.value) {
               alert('Passwords do not match.');
               return;
             }
 
+            // Add the superdirectories and force .gpg on the end.
             var newpassnameval = passpath + newpassname.value + '.gpg',
               newpasswordval = newpassword.value,
               recipientsvals = [];
 
+            // Setup the string recipients.
             for (ind = 0; ind < recipients.length; ind++) {
               recipientsvals.push(
                 recipients[ind].value);
             }
+
+            // Request password creation with these parameters.
             socket.emit('makePass', {
               newpassname: newpassnameval,
               newpassword: newpasswordval,
               recipients: recipientsvals
             });
 
+            // Assign a location for this new value to the stored tree.
             assignLoc(storedtree, newpassnameval.substring(2).split('/'));
-
           });
 
         fieldset.appendChild(newpassbutton);
 
+        // Make a cancel button.
         var cancel = document.createElement(
           'button');
         cancel.type = 'button';
@@ -398,22 +473,29 @@
           'Cancel'));
         currenteditpane = function(event) {
           currenteditpane = null;
+          // Remove this pane.
           form.removeChild(fieldset);
         };
         cancel.addEventListener("click",
           currenteditpane);
         fieldset.appendChild(cancel);
         form.appendChild(fieldset);
+
       }
 
+      // Setup an editor pane for adding a folder at the
+      // specified location with a specified superdirectory.
       function foldAlter(form, superfolder) {
 
         var fieldset = document.createElement('fieldset');
 
+        // Make a text field for "Folder Name:"
         fieldset.appendChild(document.createElement(
           'br'));
         fieldset.appendChild(document.createTextNode(
           'Folder Name:'));
+
+        // Make an input field for the folder name to make.
         var newfoldname = document.createElement(
           'input');
         newfoldname.id = 'foldname';
@@ -423,9 +505,10 @@
         fieldset.appendChild(document.createElement(
           'br'));
 
-        newfoldbutton = document.createElement(
+        // Make a button for creating the folder.
+        var newfoldbutton = document.createElement(
           'button');
-        newfoldbutton.id = 'gennewpass';
+        newfoldbutton.id = 'gennewfold';
         newfoldbutton.type = 'button';
         newfoldbutton.appendChild(document.createTextNode(
           'Confirm'));
@@ -440,29 +523,29 @@
             assignLoc(storedtree, newfoldnameval.substring(2).split('/'));
 
           });
-
         fieldset.appendChild(newfoldbutton);
 
+        // Make a cancel button.
         var cancel = document.createElement(
           'button');
         cancel.type = 'button';
         cancel.appendChild(document.createTextNode(
           'Cancel'));
         currenteditpane = function(event) {
+
           currenteditpane = null;
+          // Remove this fieldset.
           form.removeChild(fieldset);
+
         }
         cancel.addEventListener("click",
           currenteditpane);
         fieldset.appendChild(cancel);
         form.appendChild(fieldset);
+
       }
 
-      function addAfter(item, newItem) {
-        item.parentNode.insertBefore(newItem,
-          item.nextSibling);
-      }
-
+      // Helper function for whenever we need to reset the page.
       function resetPage() {
         var list = document.getElementById('list');
         while (list.firstChild) {
@@ -474,24 +557,28 @@
         }
       }
 
+      // Whenever the tree is sent, rebuild it.
       socket.on('recieveTree', function(arr) {
 
         form = document.getElementById(
           'form');
 
+        // Quick clear.
         form.innerHTML = "";
 
         var list = document.createElement(
           'div');
         list.id = 'list';
         form.appendChild(list);
+
+        // If the tree already exists, don't replace it.
         if (storedtree == null) {
           storedtree = buildTree(arr);
         }
+
         resetPage();
 
       });
-
     </script>
     <script type="text/javascript" id="newscript"></script>
   </head>

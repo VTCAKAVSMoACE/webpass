@@ -1,12 +1,8 @@
 #!/bin/bash
 
 for i in $(find "$@" -name "*.gpg"); do
+  # Print the filename to STDOUT.
   echo "$i"
+  # Grab all the header information, push it to STDERR.
   gpg --batch --list-packets "$i" > /dev/null
 done
-
-#for i in $(find . -name "*.gpg"); do 
-#  if [[ $(( gpg --batch --list-packets "$i" 3>&1 2>&3- ) | sed "3q;d") =~ "$@" ]]; then 
-#    echo "$i" 
-#  fi
-#done
