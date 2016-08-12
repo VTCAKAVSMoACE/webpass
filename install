@@ -11,7 +11,14 @@ npm install socket.io express
 
 wget -O openpgp.js https://raw.githubusercontent.com/openpgpjs/openpgpjs/master/dist/openpgp.js
 
-mkdir -p ~/.password_store/
+PASS_DIR="~/.password_store/"
+
+mkdir -p "$PASS_DIR"
+if [[ ! -f "$PASS_DIR.git" ]];then
+  cd "$PASS_DIR"
+  git init
+  cd "$DIR"
+fi
 
 echo -n 'HTTPS SSL/TLS Certificate path: '
 read cert
