@@ -4,7 +4,7 @@
     <script src="/socket.io/socket.io.js" type="text/javascript"></script>
     <script type="text/javascript">
       // Target address to connect the websocket to.
-      var targetAddress = '';
+      var targetAddress = window.location.href.substring(8, window.location.href.lastIndexOf('/'));
 
       // Connect the websocket.
       var socket = io.connect(
@@ -74,7 +74,7 @@
 
         // Send the server a password request.
         socket.emit('retrievePass', './' +
-          path);
+          path + '.gpg');
 
       }
 
@@ -130,7 +130,7 @@
         if (patharr.length == 1) {
 
           // If it's not an empty string, assign it to this tree.
-          if (patharr[0] != '')
+          if (patharr[0] != '' && !curlimb.mems.includes(patharr[0]))
             curlimb.mems.push(patharr[0]);
           return;
         }
@@ -237,6 +237,10 @@
             item.id = 'key: ' + curlimb.path +
               curlimb.mems[ind];
 
+            if (item.id.indexOf('.gpg', item.id.length - 4) != -1) {
+              item.id = item.id.substring(0, item.id.length - 4);
+            }
+
             console.log(item.id);
 
             // Make an edit button.
@@ -248,7 +252,9 @@
             edit.addEventListener("click",
               function(event) {
                 var target = event.target.parentNode;
-                editMenu(document.getElementById('list'), target.id.substring(5).split('/').pop(), target.id.substring(5));
+                var passname = target.id.split('/').pop();
+                var passpath = target.id.substring(5, target.id.lastIndexOf('/') + 1)
+                editMenu(document.getElementById('list'), passname, passpath);
               });
 
             item.appendChild(edit);
@@ -485,7 +491,7 @@
             });
 
             // Assign a location for this new value to the stored tree.
-            assignLoc(storedtree, newpassnameval.substring(2).split('/'));
+            assignLoc(storedtree, newpassname.substring(2).split('/'));
           });
 
         fieldset.appendChild(newpassbutton);
